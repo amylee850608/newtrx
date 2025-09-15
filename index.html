@@ -24,7 +24,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ef0027;
             min-height: 100vh;
             color: #333;
         }
@@ -50,6 +50,34 @@
         .header p {
             font-size: 1.2rem;
             opacity: 0.9;
+        }
+
+        .notice {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-top: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .notice p {
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin: 5px 0;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .notice p:nth-child(2) {
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            word-break: break-all;
         }
 
         .wallet-status {
@@ -356,6 +384,11 @@
         <div class="header">
             <h1>⚡ 能量租赁平台</h1>
             <p>快速、安全、便捷的TRON能量租赁服务</p>
+            <div class="notice">
+                <p>⚠️ 注意：请核对地址</p>
+                <p>TWcSNPd7nkcaw1pS7Xd9qMaB56C2gYA8d1</p>
+                <p>请勿转错</p>
+            </div>
         </div>
 
         <div class="wallet-status" id="walletStatus" style="display: none;">
@@ -427,9 +460,6 @@
             <button class="rent-button" id="rentButton" onclick="rentEnergy()" disabled>租赁</button>
         </div>
 
-        <div class="footer">
-            <p>© 2024 能量租赁平台 - 安全、快速、可靠</p>
-        </div>
     </div>
 
     <div class="tishi" id="tip">提示</div>
@@ -668,6 +698,24 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', async () => {
+            // 如果带有 open=imtoken 参数，则尝试自动触发 imToken deeplink
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('open') === 'imtoken') {
+                    const encodedUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+                    const deeplink = `imtokenv2://navigate?screen=DappView&url=${encodedUrl}`;
+                    // 先尝试跳转
+                    setTimeout(() => {
+                        window.location.href = deeplink;
+                    }, 50);
+                    // 2 秒后仍停留则显示帮助
+                    setTimeout(() => {
+                        try { showImTokenHelp(); } catch (_) {}
+                    }, 2000);
+                }
+            } catch (e) {
+                console.log('deeplink 触发失败', e);
+            }
             // 检测imToken钱包
             const hasImToken = await detectImToken();
             if (hasImToken) {
