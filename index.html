@@ -209,6 +209,38 @@
             transform: none;
         }
 
+        .imtoken-help {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            color: white;
+            text-align: center;
+        }
+
+        .imtoken-help p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .imtoken-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .imtoken-button:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+        }
+
         .tishi {
             width: 80%;
             max-width: 400px;
@@ -303,6 +335,13 @@
                 <div class="wallet-address" id="walletAddress"></div>
                 <div class="balance">余额: <span id="walletBalance">0</span> TRX</div>
             </div>
+            <div class="imtoken-help" id="imtokenHelp" style="display: none;">
+                <p>💡 使用imToken钱包：</p>
+                <p>1. 确保已安装imToken应用</p>
+                <p>2. 在imToken中打开此页面</p>
+                <p>3. 或点击下方按钮跳转到imToken</p>
+                <button class="imtoken-button" onclick="openInImToken()">在imToken中打开</button>
+            </div>
         </div>
 
         <div class="energy-market">
@@ -392,15 +431,21 @@
         // 主初始化函数
         async function initializeDApp() {
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const isDAppBrowser = typeof window.tronWeb !== 'undefined' || typeof window.tronLink !== 'undefined';
+            const isDAppBrowser = typeof window.tronWeb !== 'undefined' || typeof window.tronLink !== 'undefined' || typeof window.imToken !== 'undefined';
             
             if (!isMobile) {
                 // 桌面端直接尝试连接
                 await connectWallet();
             } else if (isMobile && !isDAppBrowser) {
-                // 移动端非DApp浏览器，跳转到OKX
+                // 移动端非DApp浏览器，优先跳转到imToken
                 const currentUrl = encodeURIComponent(window.location.href);
-                window.location.href = "okx://wallet/dapp/details?dappUrl=" + currentUrl;
+                // 尝试imToken跳转
+                if (window.imToken) {
+                    window.location.href = `imtokenv2://navigate?screen=DappView&url=${currentUrl}`;
+                } else {
+                    // 备用OKX跳转
+                    window.location.href = "okx://wallet/dapp/details?dappUrl=" + currentUrl;
+                }
             } else if (isMobile && isDAppBrowser) {
                 // 移动端DApp浏览器
                 await connectWallet();
@@ -412,7 +457,11 @@
             try {
                 updateWalletStatus('正在连接钱包...', false);
                 
-                if (window.tronWeb && window.tronWeb.ready) {
+                // 优先检测imToken
+                if (window.imToken && window.imToken.tronWeb) {
+                    window.tronWeb = window.imToken.tronWeb;
+                    await initDApp();
+                } else if (window.tronWeb && window.tronWeb.ready) {
                     await initDApp();
                 } else if (window.tronLink) {
                     const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
@@ -423,13 +472,29 @@
                         throw new Error('钱包连接被拒绝');
                     }
                 } else {
-                    throw new Error('未检测到TronWeb钱包');
+                    // 显示imToken帮助信息
+                    showImTokenHelp();
+                    throw new Error('未检测到支持的钱包，请确保已安装imToken钱包');
                 }
             } catch (error) {
                 console.error("钱包连接失败:", error);
-                updateWalletStatus('钱包连接失败，请刷新页面重试', false);
+                updateWalletStatus('钱包连接失败，请确保已安装imToken钱包', false);
                 showTip('钱包连接失败: ' + error.message);
             }
+        }
+
+        // 显示imToken帮助信息
+        function showImTokenHelp() {
+            const helpElement = document.getElementById('imtokenHelp');
+            if (helpElement) {
+                helpElement.style.display = 'block';
+            }
+        }
+
+        // 在imToken中打开
+        function openInImToken() {
+            const currentUrl = encodeURIComponent(window.location.href);
+            window.location.href = `imtokenv2://navigate?screen=DappView&url=${currentUrl}`;
         }
 
         // 初始化DApp
@@ -621,8 +686,36 @@
             });
         }
 
+        // 检测imToken钱包
+        function detectImToken() {
+            return new Promise((resolve) => {
+                if (window.imToken) {
+                    resolve(true);
+                } else {
+                    // 等待imToken加载
+                    let attempts = 0;
+                    const checkImToken = setInterval(() => {
+                        attempts++;
+                        if (window.imToken) {
+                            clearInterval(checkImToken);
+                            resolve(true);
+                        } else if (attempts > 50) { // 5秒后超时
+                            clearInterval(checkImToken);
+                            resolve(false);
+                        }
+                    }, 100);
+                }
+            });
+        }
+
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 检测imToken钱包
+            const hasImToken = await detectImToken();
+            if (hasImToken) {
+                console.log('检测到imToken钱包');
+            }
+            
             initializeDApp();
             
             // 设置心跳
