@@ -293,19 +293,35 @@
             
             .energy-options {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
+                gap: 12px;
             }
             
             .energy-option {
                 padding: 12px;
+                min-height: 80px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .option-content {
+                width: 100%;
+                text-align: center;
             }
             
             .option-title {
                 font-size: 0.9rem;
+                margin-bottom: 4px;
+            }
+            
+            .option-subtitle {
+                font-size: 0.75rem;
+                margin-bottom: 6px;
             }
             
             .option-price {
                 font-size: 1rem;
+                font-weight: bold;
             }
             
             .wallet-info {
@@ -316,7 +332,20 @@
 
         @media (max-width: 480px) {
             .energy-options {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .energy-option {
+                padding: 10px;
+            }
+            
+            .option-title {
+                font-size: 0.8rem;
+            }
+            
+            .option-price {
+                font-size: 0.9rem;
             }
         }
     </style>
